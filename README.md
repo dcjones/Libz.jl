@@ -49,21 +49,6 @@ close(io)
 
 # pointlessly compress and decompress some data (use `read` on v0.5)
 readbytes(rand(UInt8, 10000) |> ZlibDeflateInputStream |> ZlibInflateInputStream)
-
-# convenience functions
-writegz("data.txt.gz", "Hello!")
-string = readgzstring("data.txt.gz")
-
-writegz("data.bin.gz", rand(UInt8, 10000))
-bytes = readgz("data.bin.gz")
-
-s = gzopen("data.bin.gz")
-bytes = read(s)
-close(s)
-
-gzopen("data.bin.gz", "w") do s
-    write(s, rand(UInt8, 10000))
-end
 ```
 
 ## Other functions

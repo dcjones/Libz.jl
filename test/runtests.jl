@@ -93,17 +93,6 @@ end
     @test adler32(BufferedInputStream(IOBuffer(data), 1024)) == a32
 end
 
-
-@testset "Files" begin
-
-    testgz = joinpath(Pkg.dir("Libz"), "test/test.gz")
-    @test crc32(readgz(testgz)) === 0x2b082899
-
-    f = tempname() * ".gz"
-    writegz(f, "Hello World!")
-    @test readgzstring(f) == "Hello World!"
-end
-
 @testset "Concatenated gzip files" begin
     filepath = Pkg.dir("Libz", "test", "foobar.txt.gz")
     s = readstring(open(filepath) |> ZlibInflateInputStream)
