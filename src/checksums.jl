@@ -62,5 +62,3 @@ Compute the Adler-32 checksum over a byte array.
 function adler32(data::Vector{UInt8})
     return _adler32(_adler32(), pointer(data), length(data))::UInt32
 end
-
-

@@ -4,19 +4,21 @@ The `mode` type parameter should be either :inflate or :deflate.
 type Source{mode,T<:BufferedInputStream}
     input::T
     zstream::Base.RefValue{ZStream}
+    state::State
     reset_on_end::Bool
-    zstream_end::Bool
 end
 
 
 # inflate source constructors
 # ---------------------------
 
-function InflateSource{T <: BufferedInputStream}(input::T, gzip::Bool,
-                                                 reset_on_end::Bool)
-    source = Source{:inflate, T}(input, init_inflate_zstream(gzip), reset_on_end, false)
-    finalizer(source, close)
-    return source
+function InflateSource{T<:BufferedInputStream}(input::T, gzip::Bool,
+                                               reset_on_end::Bool)
+    return Source{:inflate,T}(
+        input,
+        init_inflate_zstream(gzip),
+        initialized,
+        reset_on_end)
 end
 
 
@@ -53,19 +55,22 @@ Open a zlib inflate input stream.
 """
 function ZlibInflateInputStream(input; bufsize::Int=8192, gzip::Bool=true,
                                 reset_on_end::Bool=true)
-    return BufferedInputStream(InflateSource(input, bufsize, gzip, reset_on_end), bufsize)
+    return BufferedInputStream(
+        InflateSource(input, bufsize, gzip, reset_on_end),
+        bufsize)
 end
 
 
 # deflate source constructors
 # ---------------------------
 
-function DeflateSource{T <: BufferedInputStream}(
+function DeflateSource{T<:BufferedInputStream}(
                     input::T, gzip::Bool, level::Int, mem_level::Int, strategy::Int)
-    source = Source{:deflate, T}(input, init_deflate_stream(gzip, level, mem_level, strategy),
-                                 false, false)
-    finalizer(source, close)
-    return source
+    return Source{:deflate,T}(
+        input,
+        init_deflate_stream(gzip, level, mem_level, strategy),
+        initialized,
+        false)
 end
 
 
@@ -112,97 +117,121 @@ end
 """
 Read bytes from the zlib stream to a buffer. Satisfies the BufferedStreams source interface.
 """
-function Base.readbytes!{mode}(source::Source{mode}, buffer::Vector{UInt8},
-                               from::Int, to::Int)
-    if source.zstream_end
+function BufferedStreams.readbytes!{mode}(
+        source::Source{mode},
+        buffer::Vector{UInt8},
+        from::Int, to::Int)
+    if source.state == finalized
         return 0
+    elseif source.state == finished && source.reset_on_end
+        reset!(source)
     end
 
-    zstream = getindex(source.zstream)
+    @trans source (
+        initialized => inprogress,
+        inprogress  => inprogress
+    )
+
+    fillbuffer!(source.input)
+    source.zstream[].next_out = pointer(buffer, from)
+    source.zstream[].avail_out = to - from + 1
+    _, n_out = process(
+        source,
+        mode == :deflate && eof(source.input) ? Z_FINISH : Z_NO_FLUSH)
+    return n_out
+end
+
+function process{mode}(source::Source{mode}, flush)
+    @assert source.state == inprogress
+    # counter of processed input/output bytes
+    n_in = n_out = 0
     input = source.input
-    zstream.next_out  = pointer(buffer, from)
-    zstream.avail_out = to - from + 1
-    flushmode = Z_NO_FLUSH
+    zstream = source.zstream[]
 
-    ret = Z_OK
-    while zstream.avail_out > 0
+    #println("--- Source{", mode, "} ---")
+    @label process
+    zstream.next_in = pointer(input)
+    zstream.avail_in = BufferedStreams.available_bytes(input)
+    old_avail_in = zstream.avail_in
+    old_avail_out = zstream.avail_out
+    ret = ccall(
+        (mode, _zlib),
+        Cint,
+        (Ptr{ZStream}, Cint),
+        source.zstream, flush)
+    n_in += old_avail_in - zstream.avail_in
+    n_out += old_avail_out - zstream.avail_out
+    input.position += old_avail_in - zstream.avail_in
+
+    if ret == Z_OK
         if zstream.avail_in == 0
-            if input.position > input.available
-                nb = fillbuffer!(input)
-                if nb == 0
-                    flushmode = Z_FINISH
-
-                    # we already saw a stream end, we don't need to call inflate
-                    # again
-                    if mode == :inflate && ret == Z_STREAM_END
-                        close(source)
-                        break
-                    end
-                end
+            if BufferedStreams.fillbuffer!(input) == 0
+                flush = Z_FINISH
             end
-
-            zstream.next_in = pointer(input.buffer, input.position)
-            zstream.avail_in = input.available - input.position + 1
-
-            # advance to the end and let zlib keep track of what's used
-            input.position = input.available + 1
+            @goto process
         end
-
-        ret = ccall((mode, _zlib),
-                    Cint, (Ptr{ZStream}, Cint),
-                    source.zstream, flushmode)
-
-        if ret == Z_FINISH
-            break
-        elseif ret == Z_STREAM_END
-            if source.reset_on_end
-                if reset!(source) != Z_OK
-                    close(source)
-                    break
-                end
-            else
-                close(source)
-                break
-            end
-        elseif ret != Z_OK
-            if ret == Z_DATA_ERROR
-                error("Input is not zlib compressed data.")
-            else
-                error(string("zlib errror: ", ret))
-            end
-        end
+    elseif ret == Z_STREAM_END
+        @trans source inprogress => finished
+    elseif ret == Z_BUF_ERROR
+        # could not consume more input or produce more output
+    elseif ret < 0
+        zerror(zstream, ret)
+    else
+        @assert false
     end
 
-    return (to - from + 1) - zstream.avail_out
+    return n_in, n_out
 end
 
 
-@inline function Base.eof(source::Source)
-    return source.zstream_end
-end
-
-
-function Base.close(source::Source{:inflate})
-    if !source.zstream_end
-        source.zstream_end = true
-        ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+@inline function Base.eof{mode}(source::Source{mode})
+    if source.state == initialized ||
+        (mode == :inflate && source.state == finished && source.reset_on_end)
+        return eof(source.input)
     end
+    return source.state == finished || source.state == finalized
 end
 
 
-function Base.close(source::Source{:deflate})
-    if !source.zstream_end
-        source.zstream_end = true
-        ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+function Base.close{mode}(source::Source{mode})
+    if source.state == finalized
+        close(source.input)
+        return
     end
+    if mode == :inflate
+        ret = ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+    else
+        @assert mode == :deflate
+        ret = ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+    end
+    if ret != Z_OK
+        zerror(source.zstream[], ret)
+    end
+    @trans source (
+        initialized => finalized,
+        inprogress  => finalized,
+        finished    => finalized
+    )
+    close(source.input)
+    return
 end
 
 
-function reset!(source::Source{:inflate})
-    return ccall((:inflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
-end
-
-
-function reset!(source::Source{:deflate})
-    return ccall((:deflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+function reset!{mode}(source::Source{mode})
+    if mode == :inflate
+        ret = ccall((:inflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+    else
+        @assert mode == :deflate
+        ret = ccall((:deflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+    end
+    if ret != Z_OK
+        zerror(source.zstream[], ret)
+    end
+    @trans source (
+        initialized => initialized,
+        inprogress  => initialized,
+        finished    => initialized,
+        finalized   => initialized
+    )
+    return source
 end

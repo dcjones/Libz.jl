@@ -11,6 +11,7 @@ export ZlibInflateInputStream, ZlibDeflateInputStream,
 
 
 include("zlib_h.jl")
+include("state.jl")
 include("source.jl")
 include("sink.jl")
 include("checksums.jl")

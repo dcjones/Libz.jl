@@ -1,21 +1,21 @@
-
 """
 The `mode` type parameter should be either :inflate or :deflate.
 """
 type Sink{mode,T<:BufferedOutputStream}
     output::T
     zstream::Base.RefValue{ZStream}
-    zstream_end::Bool
+    state::State
 end
 
 
 # inflate sink constructors
 # -------------------------
 
-function InflateSink{T <: BufferedOutputStream}(output::T, gzip::Bool)
-    sink = Sink{:inflate, T}(output, init_inflate_zstream(gzip), false)
-    finalizer(sink, close)
-    return sink
+function InflateSink{T<:BufferedOutputStream}(output::T, gzip::Bool)
+    zstream = init_inflate_zstream(gzip)
+    zstream[].next_out = pointer(output)
+    zstream[].avail_out = BufferedStreams.available_bytes(output)
+    return Sink{:inflate,T}(output, zstream, initialized)
 end
 
 
@@ -55,11 +55,12 @@ end
 # deflate sink constructors
 # -------------------------
 
-function DeflateSink{T <: BufferedOutputStream}(
-                    output::T, gzip::Bool, level::Int, mem_level::Int, strategy::Int)
-    sink = Sink{:deflate, T}(output, init_deflate_stream(gzip, level, mem_level, strategy), false)
-    finalizer(sink, close)
-    return sink
+function DeflateSink{T<:BufferedOutputStream}(
+        output::T, gzip::Bool, level::Int, mem_level::Int, strategy::Int)
+    zstream = init_deflate_stream(gzip, level, mem_level, strategy)
+    zstream[].next_out = pointer(output)
+    zstream[].avail_out = BufferedStreams.available_bytes(output)
+    return Sink{:deflate,T}(output, zstream, initialized)
 end
 
 
@@ -107,59 +108,113 @@ end
 Write some bytes from a given buffer. Satisfies the BufferedStreams sink
 interface.
 """
-function BufferedStreams.writebytes{mode}(sink::Sink{mode}, buffer::Vector{UInt8},
-                                          n::Int, eof::Bool)
+function BufferedStreams.writebytes{mode}(
+        sink::Sink{mode},
+        buffer::Vector{UInt8},
+        n::Int, eof::Bool)
+    if sink.state == finalized
+        return 0
+    elseif sink.state == finished
+        reset!(sink)
+    end
+
+    @trans sink (
+        initialized => inprogress,
+        inprogress  => inprogress
+    )
+
+    BufferedStreams.flushbuffer!(sink.output)
+    sink.zstream[].next_in = pointer(buffer)
+    sink.zstream[].avail_in = n
+    n_in, _ = process(sink, mode == :deflate && eof ? Z_FINISH : Z_NO_FLUSH)
+    return n_in
+end
+
+function Base.flush(sink::Sink)
+    if sink.state == inprogress
+        process(sink, Z_FINISH)
+    end
+    flush(sink.output)
+end
+
+function process{mode}(sink::Sink{mode}, flush)
+    @assert sink.state == inprogress
+    # counter of processed input/output bytes
+    n_in = n_out = 0
+    output = sink.output
     zstream = getindex(sink.zstream)
 
-    zstream.next_in = pointer(buffer)
-    zstream.avail_in = n
-    zstream.next_out = pointer(sink.output.buffer, sink.output.position)
-    zstream.avail_out = length(sink.output.buffer) - sink.output.position + 1
-    flushmode = eof ? Z_FINISH : Z_NO_FLUSH
+    #println("--- Sink{", mode, "} ---")
+    @label process
+    zstream.next_out = pointer(output)
+    zstream.avail_out = BufferedStreams.available_bytes(output)
+    old_avail_in = zstream.avail_in
+    old_avail_out = zstream.avail_out
+    ret = ccall(
+        (mode, _zlib),
+        Cint,
+        (Ptr{ZStream}, Cint),
+        sink.zstream, flush)
+    n_in += old_avail_in - zstream.avail_in
+    n_out += old_avail_out - zstream.avail_out
+    output.position += old_avail_out - zstream.avail_out
 
-    while zstream.avail_in > 0 || eof
-        ret = ccall((mode, _zlib),
-                    Cint, (Ptr{ZStream}, Cint),
-                    sink.zstream, flushmode)
-
-        if ret == Z_BUF_ERROR
-            if zstream.avail_out == 0
-                sink.output.position = length(sink.output.buffer) + 1
-                flush(sink.output)
-                zstream.next_out = pointer(sink.output.buffer, sink.output.position)
-                zstream.avail_out = length(sink.output.buffer) - sink.output.position + 1
-            else
-                error("Buffer error during zlib compression.")
-            end
-        elseif eof && ret == Z_STREAM_END
-            close(sink)
-            break
-        elseif ret != Z_OK
-            error(string("zlib errror: ", ret))
+    if ret == Z_OK
+        if zstream.avail_out == 0
+            BufferedStreams.flushbuffer!(output)
+            @goto process
         end
+    elseif ret == Z_STREAM_END
+        @trans sink inprogress => finished
+    elseif ret == Z_BUF_ERROR
+        # could not consume more input or produce more output
+    elseif ret < 0
+        zerror(zstream, ret)
+    else
+        @assert false
     end
 
-    sink.output.position = length(sink.output.buffer) - zstream.avail_out + 1
-    if eof && sink.zstream_end
+    return n_in, n_out
+end
+
+function Base.close{mode}(sink::Sink{mode})
+    if sink.state == finalized
         close(sink.output)
+        return
     end
-
-    nb = n - zstream.avail_in
-    return nb
+    if mode == :inflate
+        ret = ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+    else
+        @assert mode == :deflate
+        ret = ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+    end
+    if ret != Z_OK
+        zerror(sink.zstream[], ret)
+    end
+    @trans sink (
+        initialized => finalized,
+        inprogress  => finalized,
+        finished    => finalized
+    )
+    close(sink.output)
+    return
 end
 
-
-function Base.close(sink::Sink{:inflate})
-    if !sink.zstream_end
-        sink.zstream_end = true
-        ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+function reset!{mode}(sink::Sink{mode})
+    if mode == :inflate
+        ret = ccall((:inflateReset, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+    else
+        @assert mode == :deflate
+        ret = ccall((:deflateReset, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
     end
-end
-
-
-function Base.close(sink::Sink{:deflate})
-    if !sink.zstream_end
-        sink.zstream_end = true
-        ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+    if ret != Z_OK
+        zerror(sink.zstream[], ret)
     end
+    @trans sink (
+        initialized => initialized,
+        inprogress  => initialized,
+        finished    => initialized,
+        finalized   => initialized
+    )
+    return sink
 end

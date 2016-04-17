@@ -6,7 +6,6 @@
 # Constants
 
 zlib_version = bytestring(ccall((:zlibVersion, _zlib), Ptr{UInt8}, ()))
-ZLIB_VERSION = tuple([parse(Int, c) for c in split(zlib_version, '.')]...)
 
 # Flush values
 const Z_NO_FLUSH       = Int32(0)
@@ -28,6 +27,28 @@ const Z_MEM_ERROR      = Int32(-4)
 const Z_BUF_ERROR      = Int32(-5)
 const Z_VERSION_ERROR  = Int32(-6)
 
+function code2str(code::Int32)
+    if code == 0
+        return "Z_OK"
+    elseif code == 1
+        return "Z_STREAM_END"
+    elseif code == 2
+        return "Z_NEED_DICT"
+    elseif code == -1
+        return "Z_ERRNO"
+    elseif code == -2
+        return "Z_STREAM_ERROR"
+    elseif code == -3
+        return "Z_DATA_ERROR"
+    elseif code == -4
+        return "Z_MEM_ERROR"
+    elseif code == -5
+        return "Z_BUF_ERROR"
+    elseif code == -6
+        return "Z_VERSION_ERROR"
+    end
+    error("unknown return code: ", code)
+end
 
 # Zlib errors as Exceptions
 zerror(e::Integer) = bytestring(ccall((:zError, _zlib), Ptr{UInt8}, (Int32,), e))
@@ -128,6 +149,21 @@ type ZStream
     end
 end
 
+# throw error exception based on ZStream and the return code
+function zerror(zstream::ZStream, code::Cint)
+    @assert code < 0
+    if zstream.msg == C_NULL
+        zerror(code)
+    else
+        error("zlib error: ", bytestring(zstream.msg), " (", code2str(code), ")")
+    end
+end
+
+# throw error exception based on the return code
+function zerror(code::Cint)
+    @assert code < 0
+    error("zlib error: ", code2str(code))
+end
 
 """
 Initialize a ZStream for inflation.
@@ -136,18 +172,10 @@ function init_inflate_zstream(gzip::Bool)
     zstream = Ref(ZStream())
     ret = ccall((:inflateInit2_, _zlib),
                 Cint, (Ptr{ZStream}, Cint, Ptr{Cchar}, Cint),
-                zstream, gzip ? 32 + 15 : -15, zlib_version, sizeof(ZStream))
+                zstream, gzip ? 32 + 15 : 15, zlib_version, sizeof(ZStream))
     if ret != Z_OK
-        if ret == Z_MEM_ERROR
-            error("Insufficient memory to allocate zlib stream.")
-        elseif ret == Z_VERSION_ERROR
-            error("Mismatching versions of zlib.")
-        elseif ret == Z_STREAM_ERROR
-            error("Invalid parameters for zlib stream initialiation.")
-        end
-        error("Error initializing zlib stream.")
+        zerror(ret)
     end
-
     return zstream
 end
 
@@ -183,17 +211,8 @@ function init_deflate_stream(gzip::Bool, level::Int, mem_level::Int,
                zstream, level, Z_DEFLATED, window_bits, mem_level, strategy,
                zlib_version, sizeof(ZStream))
    if ret != Z_OK
-       if ret == Z_MEM_ERROR
-           error("Insufficient memory to allocate zlib stream.")
-       elseif ret == Z_VERSION_ERROR
-           error("Mismatching versions of zlib.")
-       elseif ret == Z_STREAM_ERROR
-           error("Invalid parameters for zlib stream initialiation.")
-       end
-       error("Error initializing zlib stream.")
+       zerror(ret)
    end
 
    return zstream
 end
-
-
