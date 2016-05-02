@@ -47,7 +47,7 @@ end
 close(stream)
 close(io)
 
-# pointlessly compress and decompress some data
+# pointlessly compress and decompress some data (use `read` on v0.5)
 readbytes(rand(UInt8, 10000) |> ZlibDeflateInputStream |> ZlibInflateInputStream)
 
 # convenience functions
@@ -77,4 +77,3 @@ Checksum functions are exposed as `Libz.crc32(::Vector{UInt8})` and
 
 See [BufferedStreams.jl](https://github.com/dcjones/BufferedStreams.jl) for
 benchmarks of this library.
-

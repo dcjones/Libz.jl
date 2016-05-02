@@ -9,7 +9,7 @@ end
 
 @testset "Source" begin
     function test_round_trip(data)
-        return data == readbytes(data |> ZlibDeflateInputStream |> ZlibInflateInputStream)
+        return data == read(data |> ZlibDeflateInputStream |> ZlibInflateInputStream)
     end
 
     @test test_round_trip(UInt8[])
@@ -18,7 +18,7 @@ end
     @test test_round_trip(zeros(UInt8, 1000000))
 
     function test_round_trip2(data, bufsize, gzip, reset_on_end)
-        return data == readbytes(
+        return data == read(
             ZlibInflateInputStream(
                 ZlibDeflateInputStream(data, bufsize=bufsize, gzip=gzip),
                 bufsize=bufsize, gzip=gzip, reset_on_end=reset_on_end))
@@ -31,7 +31,7 @@ end
         @test test_round_trip2(zeros(UInt8, 1000000), bufsize, gzip, reset_on_end)
     end
 
-    @test_throws ErrorException readbytes(ZlibInflateInputStream([0x00, 0x01]))
+    @test_throws ErrorException read(ZlibInflateInputStream([0x00, 0x01]))
 end
 
 @testset "Sink" begin
@@ -66,7 +66,7 @@ end
         @test test_round_trip2(zeros(UInt8, 1000000), bufsize, gzip)
     end
 
-    deflated = readbytes(ZlibDeflateInputStream("foo".data))
+    deflated = read(ZlibDeflateInputStream("foo".data))
     buf = IOBuffer()
     out = ZlibInflateOutputStream(buf)
     BufferedStreams.writebytes(out, deflated, length(deflated), true)
