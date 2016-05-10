@@ -176,11 +176,11 @@ Initialize a ZStream for deflation.
 """
 function init_deflate_stream(gzip::Bool, level::Integer, mem_level::Integer, strategy)
     if !(1 <= level <= 9)
-        error("Invalid zlib compression level.")
+        throw(ArgumentError("invalid zlib compression level"))
     end
 
     if !(1 <= mem_level <= 9)
-        error("Invalid zlib memory level.")
+        throw(ArgumentError("invalid zlib memory level"))
     end
 
     if strategy != Z_DEFAULT_STRATEGY &&
@@ -188,7 +188,7 @@ function init_deflate_stream(gzip::Bool, level::Integer, mem_level::Integer, str
         strategy != Z_HUFFMAN_ONLY &&
         strategy != Z_RLE &&
         strategy != Z_FIXED
-        error("Invalid zlib strategy.")
+        throw(ArgumentError("invalid zlib strategy"))
     end
 
    zstream = Ref(ZStream())

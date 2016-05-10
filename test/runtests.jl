@@ -33,6 +33,9 @@ srand(0x123456)
         @test test_round_trip2(zeros(UInt8, 1000000), bufsize, gzip, reset_on_end)
     end
 
+    @test_throws ArgumentError ZlibDeflateInputStream(UInt8[], bufsize=0)
+    @test_throws ArgumentError ZlibDeflateInputStream(UInt8[], level=10)
+    @test_throws ArgumentError ZlibInflateInputStream(UInt8[], bufsize=0)
     @test_throws ErrorException read(ZlibInflateInputStream([0x00, 0x01]))
 
     # check state transition
@@ -88,6 +91,10 @@ end
         @test test_round_trip2(rand(UInt8, 1000000), bufsize, gzip)
         @test test_round_trip2(zeros(UInt8, 1000000), bufsize, gzip)
     end
+
+    @test_throws ArgumentError ZlibDeflateOutputStream(UInt8[], bufsize=0)
+    @test_throws ArgumentError ZlibDeflateOutputStream(UInt8[], level=10)
+    @test_throws ArgumentError ZlibInflateOutputStream(UInt8[], bufsize=0)
 
     deflated = read(ZlibDeflateInputStream("foo".data))
     buf = IOBuffer()
@@ -158,4 +165,13 @@ end
     filepath = Pkg.dir("Libz", "test", "foobar.txt.gz")
     s = readstring(open(filepath) |> ZlibInflateInputStream)
     @test s == "foo\nbar\n"
+end
+
+@testset "Error" begin
+    @test_throws ErrorException Libz.zerror(Libz.Z_ERRNO)
+    @test_throws ErrorException Libz.zerror(Libz.Z_STREAM_ERROR)
+    @test_throws ErrorException Libz.zerror(Libz.Z_DATA_ERROR)
+    @test_throws ErrorException Libz.zerror(Libz.Z_MEM_ERROR)
+    @test_throws ErrorException Libz.zerror(Libz.Z_BUF_ERROR)
+    @test_throws ErrorException Libz.zerror(Libz.Z_VERSION_ERROR)
 end
