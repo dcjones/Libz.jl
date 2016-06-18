@@ -3,7 +3,7 @@ The `mode` type parameter must be either `:inflate` or `:deflate`.
 """
 type Sink{mode,T<:BufferedOutputStream}
     output::T
-    zstream::Base.RefValue{ZStream}
+    zstream::ZStream
     state::State
 end
 
@@ -13,8 +13,8 @@ end
 
 function InflateSink{T<:BufferedOutputStream}(output::T, gzip::Bool)
     zstream = init_inflate_zstream(gzip)
-    zstream[].next_out = pointer(output)
-    zstream[].avail_out = BufferedStreams.available_bytes(output)
+    zstream.next_out = pointer(output)
+    zstream.avail_out = BufferedStreams.available_bytes(output)
     return Sink{:inflate,T}(output, zstream, initialized)
 end
 
@@ -56,8 +56,8 @@ end
 function DeflateSink{T<:BufferedOutputStream}(
         output::T, gzip::Bool, level::Integer, mem_level::Integer, strategy)
     zstream = init_deflate_zstream(gzip, level, mem_level, strategy)
-    zstream[].next_out = pointer(output)
-    zstream[].avail_out = BufferedStreams.available_bytes(output)
+    zstream.next_out = pointer(output)
+    zstream.avail_out = BufferedStreams.available_bytes(output)
     return Sink{:deflate,T}(output, zstream, initialized)
 end
 
@@ -128,8 +128,8 @@ function BufferedStreams.writebytes{mode}(
     )
 
     BufferedStreams.flushbuffer!(sink.output)
-    sink.zstream[].next_in = pointer(buffer)
-    sink.zstream[].avail_in = n
+    sink.zstream.next_in = pointer(buffer)
+    sink.zstream.avail_in = n
     n_in, _ = process(sink, mode == :deflate && eof ? Z_FINISH : Z_NO_FLUSH)
     return n_in
 end
@@ -149,7 +149,7 @@ function process{mode}(sink::Sink{mode}, flush)
     # counter of processed input/output bytes
     n_in = n_out = 0
     output = sink.output
-    zstream = getindex(sink.zstream)
+    zstream = sink.zstream
 
     #println("--- Sink{", mode, "} ---")
     @label process
@@ -160,8 +160,8 @@ function process{mode}(sink::Sink{mode}, flush)
     ret = ccall(
         (mode, _zlib),
         Cint,
-        (Ptr{ZStream}, Cint),
-        sink.zstream, flush)
+        (Ref{ZStream}, Cint),
+        zstream, flush)
     n_in += old_avail_in - zstream.avail_in
     n_out += old_avail_out - zstream.avail_out
     output.position += old_avail_out - zstream.avail_out
@@ -190,13 +190,13 @@ function Base.close{mode}(sink::Sink{mode})
         return
     end
     if mode == :inflate
-        ret = ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+        ret = ccall((:inflateEnd, _zlib), Cint, (Ref{ZStream},), sink.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+        ret = ccall((:deflateEnd, _zlib), Cint, (Ref{ZStream},), sink.zstream)
     end
     if ret != Z_OK
-        zerror(sink.zstream[], ret)
+        zerror(sink.zstream, ret)
     end
     @trans sink (
         initialized => finalized,
@@ -209,13 +209,13 @@ end
 
 function reset!{mode}(sink::Sink{mode})
     if mode == :inflate
-        ret = ccall((:inflateReset, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+        ret = ccall((:inflateReset, _zlib), Cint, (Ref{ZStream},), sink.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateReset, _zlib), Cint, (Ptr{ZStream},), sink.zstream)
+        ret = ccall((:deflateReset, _zlib), Cint, (Ref{ZStream},), sink.zstream)
     end
     if ret != Z_OK
-        zerror(sink.zstream[], ret)
+        zerror(sink.zstream, ret)
     end
     @trans sink (
         initialized => initialized,

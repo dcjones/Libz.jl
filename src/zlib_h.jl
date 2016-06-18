@@ -160,9 +160,9 @@ end
 Initialize a ZStream for inflation.
 """
 function init_inflate_zstream(gzip::Bool)
-    zstream = Ref(ZStream())
+    zstream = ZStream()
     ret = ccall((:inflateInit2_, _zlib),
-                Cint, (Ptr{ZStream}, Cint, Ptr{Cchar}, Cint),
+                Cint, (Ref{ZStream}, Cint, Ptr{Cchar}, Cint),
                 zstream, gzip ? 32 + 15 : 15, zlib_version, sizeof(ZStream))
     if ret != Z_OK
         zerror(ret)
@@ -191,13 +191,13 @@ function init_deflate_zstream(gzip::Bool, level::Integer, mem_level::Integer, st
         throw(ArgumentError("invalid zlib strategy"))
     end
 
-   zstream = Ref(ZStream())
+   zstream = ZStream()
    window_bits = gzip ? 16 + 15 : 15
    # TODO: when gzip is true, it will write a "simple" gzip header/trailer that
    # doesn't include a filename, modification time, etc. We may want to support
    # that.
    ret = ccall((:deflateInit2_, _zlib),
-               Cint, (Ptr{ZStream}, Cint, Cint, Cint, Cint, Cint, Ptr{Cchar}, Cint),
+               Cint, (Ref{ZStream}, Cint, Cint, Cint, Cint, Cint, Ptr{Cchar}, Cint),
                zstream, level, Z_DEFLATED, window_bits, mem_level, strategy,
                zlib_version, sizeof(ZStream))
    if ret != Z_OK

@@ -3,7 +3,7 @@ The `mode` type parameter must be either `:inflate` or `:deflate`.
 """
 type Source{mode,T<:BufferedInputStream}
     input::T
-    zstream::Base.RefValue{ZStream}
+    zstream::ZStream
     state::State
     reset_on_end::Bool
 end
@@ -137,8 +137,8 @@ function BufferedStreams.readbytes!{mode}(
     )
 
     fillbuffer!(source.input)
-    source.zstream[].next_out = pointer(buffer, from)
-    source.zstream[].avail_out = to - from + 1
+    source.zstream.next_out = pointer(buffer, from)
+    source.zstream.avail_out = to - from + 1
     _, n_out = process(
         source,
         mode == :deflate && eof(source.input) ? Z_FINISH : Z_NO_FLUSH)
@@ -150,7 +150,7 @@ function process{mode}(source::Source{mode}, flush)
     # counter of processed input/output bytes
     n_in = n_out = 0
     input = source.input
-    zstream = source.zstream[]
+    zstream = source.zstream
 
     #println("--- Source{", mode, "} ---")
     @label process
@@ -161,8 +161,8 @@ function process{mode}(source::Source{mode}, flush)
     ret = ccall(
         (mode, _zlib),
         Cint,
-        (Ptr{ZStream}, Cint),
-        source.zstream, flush)
+        (Ref{ZStream}, Cint),
+        zstream, flush)
     n_in += old_avail_in - zstream.avail_in
     n_out += old_avail_out - zstream.avail_out
     input.position += old_avail_in - zstream.avail_in
@@ -203,13 +203,13 @@ function Base.close{mode}(source::Source{mode})
         return
     end
     if mode == :inflate
-        ret = ccall((:inflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+        ret = ccall((:inflateEnd, _zlib), Cint, (Ref{ZStream},), source.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateEnd, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+        ret = ccall((:deflateEnd, _zlib), Cint, (Ref{ZStream},), source.zstream)
     end
     if ret != Z_OK
-        zerror(source.zstream[], ret)
+        zerror(source.zstream, ret)
     end
     @trans source (
         initialized => finalized,
@@ -223,13 +223,13 @@ end
 
 function reset!{mode}(source::Source{mode})
     if mode == :inflate
-        ret = ccall((:inflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+        ret = ccall((:inflateReset, _zlib), Cint, (Ref{ZStream},), source.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateReset, _zlib), Cint, (Ptr{ZStream},), source.zstream)
+        ret = ccall((:deflateReset, _zlib), Cint, (Ref{ZStream},), source.zstream)
     end
     if ret != Z_OK
-        zerror(source.zstream[], ret)
+        zerror(source.zstream, ret)
     end
     @trans source (
         initialized => initialized,
