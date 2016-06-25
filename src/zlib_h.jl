@@ -1,11 +1,15 @@
 # general zlib constants, definitions
 
-@unix_only    const _zlib = "libz"
-@windows_only const _zlib = "zlib1"
+@static if is_unix()
+    const _zlib = "libz"
+end
+@static if is_windows()
+    const _zlib = "zlib1"
+end
 
 # Constants
 
-zlib_version = bytestring(ccall((:zlibVersion, _zlib), Ptr{UInt8}, ()))
+zlib_version = unsafe_string(ccall((:zlibVersion, _zlib), Ptr{UInt8}, ()))
 
 # Flush values
 const Z_NO_FLUSH      = Int32(0)
@@ -146,7 +150,7 @@ function zerror(zstream::ZStream, code::Cint)
     if zstream.msg == C_NULL
         zerror(code)
     else
-        error("zlib error: ", bytestring(zstream.msg), " (", code2str(code), ")")
+        error("zlib error: ", string(zstream.msg), " (", code2str(code), ")")
     end
 end
 
