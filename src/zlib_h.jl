@@ -1,10 +1,9 @@
 # general zlib constants, definitions
 
-@static if is_unix()
-    const _zlib = "libz"
-end
-@static if is_windows()
+if is_windows()
     const _zlib = "zlib1"
+else
+    const _zlib = "libz"
 end
 
 # Constants
