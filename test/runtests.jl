@@ -175,3 +175,11 @@ end
     @test_throws ErrorException Libz.zerror(Libz.Z_BUF_ERROR)
     @test_throws ErrorException Libz.zerror(Libz.Z_VERSION_ERROR)
 end
+
+@testset "Low-level APIs" begin
+    zstream = Libz.ZStream()
+    ret = Libz.init_inflate!(zstream, 15)
+    @test ret == Libz.Z_OK
+    zstream = Libz.ZStream()
+    @test_throws ErrorException (Libz.@zcheck Libz.init_inflate!(zstream, 100))
+end

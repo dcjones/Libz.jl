@@ -232,10 +232,10 @@ end
 # exception if the return code is not Z_OK.
 macro zcheck(ex)
     @assert ex.head == :call
-    zstream = ex.args[2]
+    zstream = esc(ex.args[2])
     quote
         $(zstream).msg = C_NULL
-        ret = $(ex)
+        ret = $(esc(ex))
         if ret != Z_OK
             zerror($(zstream), ret)
         end
