@@ -8,7 +8,7 @@ export ZlibInflateInputStream, ZlibDeflateInputStream,
 
 using BufferedStreams, Compat
 
-include("zlib_h.jl")
+include("lowlevel.jl")
 include("state.jl")
 include("source.jl")
 include("sink.jl")
