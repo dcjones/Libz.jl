@@ -63,3 +63,8 @@ Checksum functions are exposed as `Libz.crc32(::Vector{UInt8})` and
 
 See [BufferedStreams.jl](https://github.com/dcjones/BufferedStreams.jl) for
 benchmarks of this library.
+
+Low-level APIs are defined in [src/lowlevel.jl](/src/lowlevel.jl). These
+constants and functions are not exported but available if necessary. At the
+moment, function wrappers are minimal but feel free to add and send functions
+you need as pull requests.
