@@ -158,7 +158,7 @@ function process{mode}(sink::Sink{mode}, flush)
     old_avail_in = zstream.avail_in
     old_avail_out = zstream.avail_out
     ret = ccall(
-        (mode, _zlib),
+        (mode, zlib),
         Cint,
         (Ref{ZStream}, Cint),
         zstream, flush)
@@ -190,10 +190,10 @@ function Base.close{mode}(sink::Sink{mode})
         return
     end
     if mode == :inflate
-        ret = ccall((:inflateEnd, _zlib), Cint, (Ref{ZStream},), sink.zstream)
+        ret = ccall((:inflateEnd, zlib), Cint, (Ref{ZStream},), sink.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateEnd, _zlib), Cint, (Ref{ZStream},), sink.zstream)
+        ret = ccall((:deflateEnd, zlib), Cint, (Ref{ZStream},), sink.zstream)
     end
     if ret != Z_OK
         zerror(sink.zstream, ret)
@@ -209,10 +209,10 @@ end
 
 function reset!{mode}(sink::Sink{mode})
     if mode == :inflate
-        ret = ccall((:inflateReset, _zlib), Cint, (Ref{ZStream},), sink.zstream)
+        ret = ccall((:inflateReset, zlib), Cint, (Ref{ZStream},), sink.zstream)
     else
         @assert mode == :deflate
-        ret = ccall((:deflateReset, _zlib), Cint, (Ref{ZStream},), sink.zstream)
+        ret = ccall((:deflateReset, zlib), Cint, (Ref{ZStream},), sink.zstream)
     end
     if ret != Z_OK
         zerror(sink.zstream, ret)

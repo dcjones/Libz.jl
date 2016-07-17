@@ -2,10 +2,8 @@
 
 if is_windows()
     const zlib = "zlib1"
-    const _zlib = "zlib1"
 else
     const zlib = "libz"
-    const _zlib = "libz"
 end
 
 
