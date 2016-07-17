@@ -160,7 +160,6 @@ function process{mode}(sink::Sink{mode}, flush)
     if mode == :inflate
         ret = inflate!(zstream, flush)
     else
-        @assert mode == :deflate
         ret = deflate!(zstream, flush)
     end
     n_in += old_avail_in - zstream.avail_in
@@ -193,7 +192,6 @@ function Base.close{mode}(sink::Sink{mode})
     if mode == :inflate
         @zcheck end_inflate!(sink.zstream)
     else
-        @assert mode == :deflate
         @zcheck end_deflate!(sink.zstream)
     end
     @trans sink (
@@ -209,7 +207,6 @@ function reset!{mode}(sink::Sink{mode})
     if mode == :inflate
         @zcheck reset_inflate!(sink.zstream)
     else
-        @assert mode == :deflate
         @zcheck reset_deflate!(sink.zstream)
     end
     @trans sink (

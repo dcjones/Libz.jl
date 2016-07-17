@@ -161,7 +161,6 @@ function process{mode}(source::Source{mode}, flush)
     if mode == :inflate
         ret = inflate!(zstream, flush)
     else
-        @assert mode == :deflate
         ret = deflate!(zstream, flush)
     end
     n_in += old_avail_in - zstream.avail_in
@@ -206,7 +205,6 @@ function Base.close{mode}(source::Source{mode})
     if mode == :inflate
         @zcheck end_inflate!(source.zstream)
     else
-        @assert mode == :deflate
         @zcheck end_deflate!(source.zstream)
     end
     @trans source (
@@ -223,7 +221,6 @@ function reset!{mode}(source::Source{mode})
     if mode == :inflate
         @zcheck reset_inflate!(source.zstream)
     else
-        @assert mode == :deflate
         @zcheck reset_deflate!(source.zstream)
     end
     @trans source (
