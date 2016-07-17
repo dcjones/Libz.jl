@@ -109,8 +109,6 @@ end
 
 const zlib_version = version()
 
-const gzip_windowbit_offset = 16
-
 function init_inflate!(zstream::ZStream, windowbits::Integer)
     return ccall(
         (:inflateInit2_, zlib),
@@ -132,11 +130,7 @@ function end_inflate!(zstream::ZStream)
 end
 
 function inflate!(zstream::ZStream, flush::Integer)
-    return ccall(
-        (:inflate, zlib),
-        Cint,
-        (Ref{ZStream}, Cint),
-        zstream, flush)
+    return ccall((:inflate, zlib), Cint, (Ref{ZStream}, Cint), zstream, flush)
 end
 
 function init_deflate!(zstream::ZStream,
@@ -171,11 +165,7 @@ function end_deflate!(zstream::ZStream)
 end
 
 function deflate!(zstream::ZStream, flush::Integer)
-    return ccall(
-        (:deflate, zlib),
-        Cint,
-        (Ref{ZStream}, Cint),
-        zstream, flush)
+    return ccall((:deflate, zlib), Cint, (Ref{ZStream}, Cint), zstream, flush)
 end
 
 function _crc32(crc::UInt32, data::Ptr{UInt8}, n::Int)
