@@ -228,12 +228,24 @@ function zerror(code::Cint)
     error("zlib error: ", code2str(code))
 end
 
+# Reset the error message field (.msg), call a zlib function (ex), and throw an
+# exception if the return code is not Z_OK.
+macro zcheck(ex)
+    @assert ex.head == :call
+    zstream = ex.args[2]
+    quote
+        $(zstream).msg = C_NULL
+        ret = $(ex)
+        if ret != Z_OK
+            zerror($(zstream), ret)
+        end
+        ret
+    end
+end
+
 function init_inflate_zstream(gzip::Bool)
     zstream = ZStream()
-    ret = init_inflate!(zstream, gzip ? 32 + 15 : 15)
-    if ret != Z_OK
-        zerror(ret)
-    end
+    @zcheck init_inflate!(zstream, gzip ? 32 + 15 : 15)
     return zstream
 end
 
@@ -256,9 +268,6 @@ function init_deflate_zstream(gzip::Bool, level::Integer, mem_level::Integer, st
 
     zstream = ZStream()
     window_bits = gzip ? 16 + 15 : 15
-    ret = init_deflate!(zstream, level, Z_DEFLATED, window_bits, mem_level, strategy)
-    if ret != Z_OK
-        zerror(ret)
-    end
+    @zcheck init_deflate!(zstream, level, Z_DEFLATED, window_bits, mem_level, strategy)
     return zstream
 end

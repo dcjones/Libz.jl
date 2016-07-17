@@ -191,13 +191,10 @@ function Base.close{mode}(sink::Sink{mode})
         return
     end
     if mode == :inflate
-        ret = end_inflate!(sink.zstream)
+        @zcheck end_inflate!(sink.zstream)
     else
         @assert mode == :deflate
-        ret = end_deflate!(sink.zstream)
-    end
-    if ret != Z_OK
-        zerror(sink.zstream, ret)
+        @zcheck end_deflate!(sink.zstream)
     end
     @trans sink (
         initialized => finalized,
@@ -210,13 +207,10 @@ end
 
 function reset!{mode}(sink::Sink{mode})
     if mode == :inflate
-        ret = reset_inflate!(sink.zstream)
+        @zcheck reset_inflate!(sink.zstream)
     else
         @assert mode == :deflate
-        ret = reset_deflate!(sink.zstream)
-    end
-    if ret != Z_OK
-        zerror(sink.zstream, ret)
+        @zcheck reset_deflate!(sink.zstream)
     end
     @trans sink (
         initialized => initialized,

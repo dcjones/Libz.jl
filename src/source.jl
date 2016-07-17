@@ -204,13 +204,10 @@ function Base.close{mode}(source::Source{mode})
         return
     end
     if mode == :inflate
-        ret = end_inflate!(source.zstream)
+        @zcheck end_inflate!(source.zstream)
     else
         @assert mode == :deflate
-        ret = end_deflate!(source.zstream)
-    end
-    if ret != Z_OK
-        zerror(source.zstream, ret)
+        @zcheck end_deflate!(source.zstream)
     end
     @trans source (
         initialized => finalized,
@@ -224,13 +221,10 @@ end
 
 function reset!{mode}(source::Source{mode})
     if mode == :inflate
-        ret = reset_inflate!(source.zstream)
+        @zcheck reset_inflate!(source.zstream)
     else
         @assert mode == :deflate
-        ret = reset_deflate!(source.zstream)
-    end
-    if ret != Z_OK
-        zerror(source.zstream, ret)
+        @zcheck reset_deflate!(source.zstream)
     end
     @trans source (
         initialized => initialized,
