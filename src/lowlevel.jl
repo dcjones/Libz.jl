@@ -178,6 +178,22 @@ function deflate!(zstream::ZStream, flush::Integer)
         zstream, flush)
 end
 
+function _crc32(crc::UInt32, data::Ptr{UInt8}, n::Int)
+    return ccall((:crc32, zlib), Culong, (Culong, Ptr{Cchar}, Cuint), crc, data, n) % UInt32
+end
+
+function _crc32()
+    return _crc32(UInt32(0), convert(Ptr{UInt8}, C_NULL), 0)
+end
+
+function _adler32(adler::UInt32, data::Ptr{UInt8}, n::Int)
+    return ccall((:adler32, zlib), Culong, (Culong, Ptr{Cchar}, Cuint), adler, data, n) % UInt32
+end
+
+function _adler32()
+    return _adler32(UInt32(0), convert(Ptr{UInt8}, C_NULL), 0)
+end
+
 
 # Utils
 # -----
