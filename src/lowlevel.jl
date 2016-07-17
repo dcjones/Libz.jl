@@ -133,7 +133,7 @@ end
 
 function inflate!(zstream::ZStream, flush::Integer)
     return ccall(
-        (:inflate, zstream),
+        (:inflate, zlib),
         Cint,
         (Ref{ZStream}, Cint),
         zstream, flush)
@@ -172,7 +172,7 @@ end
 
 function deflate!(zstream::ZStream, flush::Integer)
     return ccall(
-        (:deflate, zstream),
+        (:deflate, zlib),
         Cint,
         (Ref{ZStream}, Cint),
         zstream, flush)

@@ -157,11 +157,12 @@ function process{mode}(sink::Sink{mode}, flush)
     zstream.avail_out = BufferedStreams.available_bytes(output)
     old_avail_in = zstream.avail_in
     old_avail_out = zstream.avail_out
-    ret = ccall(
-        (mode, zlib),
-        Cint,
-        (Ref{ZStream}, Cint),
-        zstream, flush)
+    if mode == :inflate
+        ret = inflate!(zstream, flush)
+    else
+        @assert mode == :deflate
+        ret = deflate!(zstream, flush)
+    end
     n_in += old_avail_in - zstream.avail_in
     n_out += old_avail_out - zstream.avail_out
     output.position += old_avail_out - zstream.avail_out
