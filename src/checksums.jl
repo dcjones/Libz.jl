@@ -7,9 +7,9 @@ Compute the CRC-32 checksum over the `data` input. `data` can be
 function crc32 end
 
 function crc32(stream::BufferedInputStream)
-    crc = _crc32()
+    crc = crc32()
     while !eof(stream)
-        crc = _crc32(crc, pointer(stream.buffer), stream.available)
+        crc = crc32(crc, pointer(stream.buffer), stream.available)
         stream.position = 1
         stream.available = 0
         BufferedStreams.fillbuffer!(stream)
@@ -18,7 +18,7 @@ function crc32(stream::BufferedInputStream)
 end
 
 function crc32(data::Vector{UInt8})
-    return _crc32(_crc32(), pointer(data), length(data))::UInt32
+    return crc32(crc32(), pointer(data), length(data))::UInt32
 end
 
 
@@ -31,9 +31,9 @@ Compute the Adler-32 checksum over the `data` input. `data` can be
 function adler32 end
 
 function adler32(stream::BufferedInputStream)
-    adler = _adler32()
+    adler = adler32()
     while !eof(stream)
-        adler = _adler32(adler, pointer(stream.buffer), stream.available)
+        adler = adler32(adler, pointer(stream.buffer), stream.available)
         stream.position = 1
         stream.available = 0
         BufferedStreams.fillbuffer!(stream)
@@ -42,5 +42,5 @@ function adler32(stream::BufferedInputStream)
 end
 
 function adler32(data::Vector{UInt8})
-    return _adler32(_adler32(), pointer(data), length(data))::UInt32
+    return adler32(adler32(), pointer(data), length(data))::UInt32
 end
