@@ -162,7 +162,7 @@ end
 end
 
 @testset "Concatenated gzip files" begin
-    filepath = Pkg.dir("Libz", "test", "foobar.txt.gz")
+    filepath = joinpath(dirname(@__FILE__), "foobar.txt.gz")
     s = readstring(open(filepath) |> ZlibInflateInputStream)
     @test s == "foo\nbar\n"
 end
