@@ -22,10 +22,10 @@ This library exports four stream types:
 
  Type | Description
 ------| ---------------
- `ZlibInflateOutputStream` | read and decompress data
- `ZlibDeflateOutputStream` | read and compress data
- `ZlibInflateInputStream`  | write and decompress data
- `ZlibDeflateInputStream`  | write and compress data
+ `ZlibInflateOutputStream` | write and decompress data
+ `ZlibDeflateOutputStream` | write and compress data
+ `ZlibInflateInputStream`  | read and decompress data
+ `ZlibDeflateInputStream`  | read and compress data
 
 These work like regular `IO` objects. Each takes as a parameter either in input
 or output source.
