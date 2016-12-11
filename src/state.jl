@@ -29,12 +29,12 @@ macro trans(obj, ts)
         ts = :($(ts),)
     end
     @assert ts.head == :tuple
-    foldr(:(error("invalid state: ", $(obj).state)), ts.args) do t, elblk
+    foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
         @assert t.head == :(=>)
         from, to = t.args
         quote
-            if $(obj).state == $(from)
-                $(obj).state = $(to)
+            if $(esc(obj)).state == $(esc(from))
+                $(esc(obj)).state = $(esc(to))
             else
                 $(elblk)
             end
