@@ -1,7 +1,7 @@
 using Libz
 
 using BufferedStreams, Compat
-import Compat.String
+using Compat.String
 
 if VERSION >= v"0.5-"
     using Base.Test
@@ -77,7 +77,7 @@ end
         stream = outbuf |> ZlibInflateOutputStream |> ZlibDeflateOutputStream
         write(stream, data)
         flush(stream)
-        actual = takebuf_array(outbuf)
+        actual = take!(outbuf)
         return actual == data
     end
 
@@ -92,7 +92,7 @@ end
             bufsize=bufsize, raw=raw, gzip=gzip)
         write(stream, data)
         flush(stream)
-        actual = takebuf_array(outbuf)
+        actual = take!(outbuf)
         return actual == data
     end
 
@@ -129,12 +129,12 @@ end
         out = ZlibDeflateOutputStream(UInt8[], gzip=false)
         write(out, x)
         flush(out)
-        @test takebuf_array(out.sink.output) == y
+        @test take!(out.sink.output) == y
 
         out = ZlibInflateOutputStream(UInt8[], gzip=false)
         write(out, y)
         flush(out)
-        @test takebuf_array(out.sink.output) == x
+        @test take!(out.sink.output) == x
     end
 
     # check state transition
