@@ -111,7 +111,7 @@ end
     @test_throws ArgumentError ZlibDeflateOutputStream(UInt8[], level=10)
     @test_throws ArgumentError ZlibInflateOutputStream(UInt8[], bufsize=0)
 
-    deflated = read(ZlibDeflateInputStream("foo".data))
+    deflated = read(ZlibDeflateInputStream(Vector{UInt8}("foo")))
     buf = IOBuffer()
     out = ZlibInflateOutputStream(buf)
     BufferedStreams.writebytes(out, deflated, length(deflated), true)
