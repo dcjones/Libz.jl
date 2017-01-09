@@ -1,4 +1,7 @@
-using Libz, BufferedStreams, Compat
+using Libz
+
+using BufferedStreams, Compat
+import Compat.String
 
 if VERSION >= v"0.5-"
     using Base.Test
@@ -116,7 +119,7 @@ end
     out = ZlibInflateOutputStream(buf)
     BufferedStreams.writebytes(out, deflated, length(deflated), true)
     flush(out)
-    @test takebuf_string(buf) == "foo"
+    @test String(take!((buf))) == "foo"
 
     @testset "sink vector" begin
         # Python: zlib.compress(bytearray([0x40, 0x41, 0x42]))
