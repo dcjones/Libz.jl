@@ -24,19 +24,39 @@ function Base.show(io::IO, s::State)
 end
 
 # do state transition
-macro trans(obj, ts)
-    if ts.head == :(=>)
-        ts = :($(ts),)
+if VERSION < v"0.6.0-dev.2577" # after which `A=>B` is parsed as a `call`
+    macro trans(obj, ts)
+        if ts.head == :(=>)
+            ts = :($(ts),)
+        end
+        @assert ts.head == :tuple
+        foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
+            @assert t.head == :(=>)
+            from, to = t.args
+            quote
+                if $(esc(obj)).state == $(esc(from))
+                    $(esc(obj)).state = $(esc(to))
+                else
+                    $(elblk)
+                end
+            end
+        end
     end
-    @assert ts.head == :tuple
-    foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
-        @assert t.head == :(=>)
-        from, to = t.args
-        quote
-            if $(esc(obj)).state == $(esc(from))
-                $(esc(obj)).state = $(esc(to))
-            else
-                $(elblk)
+else
+    macro trans(obj, ts)
+        if ts.head == :call && ts.args[1] == :(=>)
+            ts = :($(ts),)
+        end
+        @assert ts.head == :tuple
+        foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
+            @assert t.head == :call && t.args[1] == :(=>)
+            from, to = t.args[2], t.args[3]
+            quote
+                if $(esc(obj)).state == $(esc(from))
+                    $(esc(obj)).state = $(esc(to))
+                else
+                    $(elblk)
+                end
             end
         end
     end
