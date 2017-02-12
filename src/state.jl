@@ -1,7 +1,7 @@
 # state transition:
 #   initialized => inprogress => finished => finalized
 
-bitstype 8 State
+@compat primitive type State 8 end
 
 const initialized = reinterpret(State, 0x00)
 const inprogress  = reinterpret(State, 0x01)
