@@ -40,19 +40,43 @@ end
 """
     ZlibInflateOutputStream(output[; <keyword arguments>])
 
+Construct a zlib inflate output stream to decompress zlib data.
+
+# Arguments
+* `output`: a byte vector, IO object, or BufferedInputStream to which decompressed data should be written.
+* `bufsize::Integer=8192`: input and output buffer size.
+"""
+function ZlibInflateOutputStream(output; bufsize::Integer=8192)
+    return BufferedOutputStream(InflateSink(output, bufsize, false, false), bufsize)
+end
+
+
+"""
+    GzipInflateOutputStream(output[; <keyword arguments>])
+
 Construct a zlib inflate output stream to decompress gzip/zlib data.
 
 # Arguments
 * `output`: a byte vector, IO object, or BufferedInputStream to which decompressed data should be written.
 * `bufsize::Integer=8192`: input and output buffer size.
-* `raw::Bool=false`: if true, data is raw compress data, without zlib metadata
-* `gzip::Bool=true`: if true, data is gzip compressed; if false, zlib compressed.
 """
-function ZlibInflateOutputStream(output; bufsize::Integer=8192, raw::Bool=false,
-                                 gzip::Bool=true)
-    return BufferedOutputStream(InflateSink(output, bufsize, raw, gzip), bufsize)
+function GzipInflateOutputStream(output; bufsize::Integer=8192)
+    return BufferedOutputStream(InflateSink(output, bufsize, false, true), bufsize)
 end
 
+
+"""
+    RawInflateOutputStream(output[; <keyword arguments>])
+
+Construct a zlib inflate output stream to decompress raw deflate data.
+
+# Arguments
+* `output`: a byte vector, IO object, or BufferedInputStream to which decompressed data should be written.
+* `bufsize::Integer=8192`: input and output buffer size.
+"""
+function RawInflateOutputStream(output; bufsize::Integer=8192)
+    return BufferedOutputStream(InflateSink(output, bufsize, true, false), bufsize)
+end
 
 # deflate sink constructors
 # -------------------------
@@ -89,26 +113,68 @@ end
 """
     ZlibDeflateOutputStream(output[; <keyword arguments>])
 
-Construct a zlib deflate output stream to compress gzip/zlib data.
+Construct a zlib deflate output stream to compress zlib data.
 
 # Arguments
 * `output`: a byte vector, IO object, or BufferedInputStream to which compressed data should be written.
 * `bufsize::Integer=8192`: input and output buffer size.
-* `raw::Bool=false`: if true, data is raw compress data, without zlib metadata
-* `gzip::Bool=true`: if true, data is gzip compressed; if false, zlib compressed.
 * `level::Integer=6`: compression level in 1-9.
 * `mem_level::Integer=8`: memory to use for compression in 1-9.
 * `strategy=Z_DEFAULT_STRATEGY`: compression strategy; see zlib documentation.
 """
 function ZlibDeflateOutputStream(output;
                                  bufsize::Integer=8192,
-                                 raw::Bool=false,
-                                 gzip::Bool=true,
                                  level::Integer=6,
                                  mem_level::Integer=8,
                                  strategy=Z_DEFAULT_STRATEGY)
     return BufferedOutputStream(
-        DeflateSink(output, bufsize, raw, gzip, level, mem_level, strategy),
+        DeflateSink(output, bufsize, false, false, level, mem_level, strategy),
+        bufsize)
+end
+
+
+"""
+    GzipDeflateOutputStream(output[; <keyword arguments>])
+
+Construct a zlib deflate output stream to compress gzip data.
+
+# Arguments
+* `output`: a byte vector, IO object, or BufferedInputStream to which compressed data should be written.
+* `bufsize::Integer=8192`: input and output buffer size.
+* `level::Integer=6`: compression level in 1-9.
+* `mem_level::Integer=8`: memory to use for compression in 1-9.
+* `strategy=Z_DEFAULT_STRATEGY`: compression strategy; see zlib documentation.
+"""
+function GzipDeflateOutputStream(output;
+                                 bufsize::Integer=8192,
+                                 level::Integer=6,
+                                 mem_level::Integer=8,
+                                 strategy=Z_DEFAULT_STRATEGY)
+    return BufferedOutputStream(
+        DeflateSink(output, bufsize, false, true, level, mem_level, strategy),
+        bufsize)
+end
+
+
+"""
+    RawDeflateOutputStream(output[; <keyword arguments>])
+
+Construct a zlib deflate output stream to compress raw deflate data.
+
+# Arguments
+* `output`: a byte vector, IO object, or BufferedInputStream to which compressed data should be written.
+* `bufsize::Integer=8192`: input and output buffer size.
+* `level::Integer=6`: compression level in 1-9.
+* `mem_level::Integer=8`: memory to use for compression in 1-9.
+* `strategy=Z_DEFAULT_STRATEGY`: compression strategy; see zlib documentation.
+"""
+function RawDeflateOutputStream(output; 
+                                bufsize::Integer=8192,
+                                level::Integer=6, 
+                                mem_level::Integer=8, 
+                                strategy=Z_DEFAULT_STRATEGY)
+    return BufferedOutputStream(
+        DeflateSink(output, bufsize, true, false, level, mem_level, strategy),
         bufsize)
 end
 

@@ -23,10 +23,21 @@ srand(0x123456)
     @test test_round_trip(zeros(UInt8, 1000000))
 
     function test_round_trip2(data, bufsize, raw, gzip, reset_on_end)
-        return data == read(
-            ZlibInflateInputStream(
-                ZlibDeflateInputStream(data, bufsize=bufsize, raw=raw, gzip=gzip),
-                bufsize=bufsize, raw=raw, gzip=gzip, reset_on_end=reset_on_end))
+        if gzip
+            return data == read(
+                GzipInflateInputStream(
+                    GzipDeflateInputStream(data, bufsize=bufsize),
+                    bufsize=bufsize, reset_on_end=reset_on_end))
+        elseif raw
+            return data == read(
+                RawInflateInputStream(
+                    RawDeflateInputStream(data, bufsize=bufsize),
+                    bufsize=bufsize, reset_on_end=reset_on_end))
+        end
+            return data == read(
+                ZlibInflateInputStream(
+                    ZlibDeflateInputStream(data, bufsize=bufsize),
+                    bufsize=bufsize, reset_on_end=reset_on_end))
     end
 
     for bufsize in [1, 5, 10, 50, 128*2^10], gzip in [false, true], reset_on_end in [false, true]
@@ -87,9 +98,19 @@ end
 
     function test_round_trip2(data, bufsize, raw, gzip)
         outbuf = IOBuffer()
-        stream = ZlibDeflateOutputStream(
-            ZlibInflateOutputStream(outbuf, bufsize=bufsize, raw=raw, gzip=gzip),
-            bufsize=bufsize, raw=raw, gzip=gzip)
+        if gzip
+            stream = GzipDeflateOutputStream(
+                GzipInflateOutputStream(outbuf, bufsize=bufsize),
+                bufsize=bufsize)
+        elseif raw
+            stream = RawDeflateOutputStream(
+                RawInflateOutputStream(outbuf, bufsize=bufsize),
+                bufsize=bufsize)
+        else
+            stream = ZlibDeflateOutputStream(
+                ZlibInflateOutputStream(outbuf, bufsize=bufsize),
+                bufsize=bufsize)
+        end
         write(stream, data)
         flush(stream)
         actual = take!(outbuf)
@@ -126,12 +147,12 @@ end
         x = [0x40, 0x41, 0x42]
         y = b"x\x9cspt\x02\x00\x01\x87\x00\xc4"
 
-        out = ZlibDeflateOutputStream(UInt8[], gzip=false)
+        out = ZlibDeflateOutputStream(UInt8[])
         write(out, x)
         flush(out)
         @test take!(out.sink.output) == y
 
-        out = ZlibInflateOutputStream(UInt8[], gzip=false)
+        out = ZlibInflateOutputStream(UInt8[])
         write(out, y)
         flush(out)
         @test take!(out.sink.output) == x
@@ -181,7 +202,7 @@ end
 
 @testset "Concatenated gzip files" begin
     filepath = joinpath(dirname(@__FILE__), "foobar.txt.gz")
-    s = readstring(open(filepath) |> ZlibInflateInputStream)
+    s = readstring(open(filepath) |> GzipInflateInputStream)
     @test s == "foo\nbar\n"
 end
 

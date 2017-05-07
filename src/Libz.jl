@@ -2,8 +2,12 @@ __precompile__()
 
 module Libz
 
-export ZlibInflateInputStream, ZlibDeflateInputStream,
+export GzipInflateInputStream, GzipDeflateInputStream,
+       RawInflateInputStream, RawDeflateInputStream,
+       ZlibInflateInputStream, ZlibDeflateInputStream,
+       GzipInflateOutputStream, GzipDeflateOutputStream,
        ZlibInflateOutputStream, ZlibDeflateOutputStream,
+       RawInflateOutputStream, RawDeflateOutputStream,
        adler32, crc32
 
 using BufferedStreams, Compat
