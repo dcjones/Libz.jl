@@ -1,6 +1,6 @@
 # Lower-level interface to the zlib library.
 
-if is_windows()
+if Compat.Sys.iswindows()
     const zlib = "zlib1"
 else
     const zlib = "libz"

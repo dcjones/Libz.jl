@@ -1,14 +1,7 @@
 using Libz
 
 using BufferedStreams, Compat
-using Compat.String
-
-if VERSION >= v"0.5-"
-    using Base.Test
-else
-    using BaseTestNext
-    const Test = BaseTestNext
-end
+using Base.Test
 
 srand(0x123456)
 
