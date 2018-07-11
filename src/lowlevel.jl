@@ -1,4 +1,5 @@
 # Lower-level interface to the zlib library.
+import Compat: Cvoid
 
 if Compat.Sys.iswindows()
     const zlib = "zlib1"
@@ -59,7 +60,7 @@ const Z_DEFLATED = Cint(8)
 # ZStream
 # -------
 
-type ZStream
+mutable struct ZStream
     next_in::Ptr{UInt8}
     avail_in::Cuint
     total_in::Culong
@@ -69,11 +70,11 @@ type ZStream
     total_out::Culong
 
     msg::Ptr{UInt8}
-    state::Ptr{Void}
+    state::Ptr{Cvoid}
 
-    zalloc::Ptr{Void}
-    zfree::Ptr{Void}
-    opaque::Ptr{Void}
+    zalloc::Ptr{Cvoid}
+    zfree::Ptr{Cvoid}
+    opaque::Ptr{Cvoid}
 
     data_type::Cint
     adler::Culong

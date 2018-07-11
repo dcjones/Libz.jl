@@ -1,7 +1,7 @@
 """
 The `mode` type parameter must be either `:inflate` or `:deflate`.
 """
-type Sink{mode,T<:BufferedOutputStream}
+mutable struct Sink{mode,T<:BufferedOutputStream}
     output::T
     zstream::ZStream
     state::State
@@ -11,7 +11,7 @@ end
 # inflate sink constructors
 # -------------------------
 
-function InflateSink{T<:BufferedOutputStream}(output::T, raw::Bool, gzip::Bool)
+function InflateSink(output::T, raw::Bool, gzip::Bool) where T<:BufferedOutputStream
     zstream = init_inflate_zstream(raw, gzip)
     zstream.next_out = pointer(output)
     zstream.avail_out = BufferedStreams.available_bytes(output)
@@ -57,9 +57,9 @@ end
 # deflate sink constructors
 # -------------------------
 
-function DeflateSink{T<:BufferedOutputStream}(
+function DeflateSink(
         output::T, raw::Bool, gzip::Bool, level::Integer, mem_level::Integer,
-        strategy)
+        strategy) where T<:BufferedOutputStream
     zstream = init_deflate_zstream(raw, gzip, level, mem_level, strategy)
     zstream.next_out = pointer(output)
     zstream.avail_out = BufferedStreams.available_bytes(output)
@@ -119,10 +119,10 @@ end
 Write some bytes from a given buffer. Satisfies the BufferedStreams sink
 interface.
 """
-function BufferedStreams.writebytes{mode}(
+function BufferedStreams.writebytes(
         sink::Sink{mode},
         buffer::Vector{UInt8},
-        n::Int, eof::Bool)
+        n::Int, eof::Bool) where mode
     if sink.state == finalized
         return 0
     elseif sink.state == finished
@@ -151,7 +151,7 @@ function Base.flush(sink::Sink)
     return
 end
 
-function process{mode}(sink::Sink{mode}, flush)
+function process(sink::Sink{mode}, flush) where mode
     @assert sink.state == inprogress
     # counter of processed input/output bytes
     n_in = n_out = 0
@@ -191,7 +191,7 @@ function process{mode}(sink::Sink{mode}, flush)
     return n_in, n_out
 end
 
-function Base.close{mode}(sink::Sink{mode})
+function Base.close(sink::Sink{mode}) where mode
     if sink.state == finalized
         isopen(sink.output) && close(sink.output)
         return
@@ -210,7 +210,7 @@ function Base.close{mode}(sink::Sink{mode})
     return
 end
 
-function reset!{mode}(sink::Sink{mode})
+function reset!(sink::Sink{mode}) where mode
     if mode == :inflate
         @zcheck reset_inflate!(sink.zstream)
     else

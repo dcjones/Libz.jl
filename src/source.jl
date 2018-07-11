@@ -1,7 +1,7 @@
 """
 The `mode` type parameter must be either `:inflate` or `:deflate`.
 """
-type Source{mode,T<:BufferedInputStream}
+mutable struct Source{mode,T<:BufferedInputStream}
     input::T
     zstream::ZStream
     state::State
@@ -12,8 +12,8 @@ end
 # inflate source constructors
 # ---------------------------
 
-function InflateSource{T<:BufferedInputStream}(input::T, raw::Bool, gzip::Bool,
-                                               reset_on_end::Bool)
+function InflateSource(input::T, raw::Bool, gzip::Bool,
+                       reset_on_end::Bool) where T<:BufferedInputStream
     return Source{:inflate,T}(
         input,
         init_inflate_zstream(raw, gzip),
@@ -64,9 +64,9 @@ end
 # deflate source constructors
 # ---------------------------
 
-function DeflateSource{T<:BufferedInputStream}(
+function DeflateSource(
         input::T, raw::Bool, gzip::Bool, level::Integer, mem_level::Integer,
-        strategy)
+        strategy) where T<:BufferedInputStream
     return Source{:deflate,T}(
         input,
         init_deflate_zstream(raw, gzip, level, mem_level, strategy),
@@ -128,10 +128,10 @@ end
 Read bytes from the zlib stream to a buffer. Satisfies the BufferedStreams
 source interface.
 """
-function BufferedStreams.readbytes!{mode}(
+function BufferedStreams.readbytes!(
         source::Source{mode},
         buffer::Vector{UInt8},
-        from::Int, to::Int)
+        from::Int, to::Int) where mode
     if source.state == finalized
         return 0
     elseif source.state == finished && source.reset_on_end
@@ -152,7 +152,7 @@ function BufferedStreams.readbytes!{mode}(
     return n_out
 end
 
-function process{mode}(source::Source{mode}, flush)
+function process(source::Source{mode}, flush) where mode
     @assert source.state == inprogress
     # counter of processed input/output bytes
     n_in = n_out = 0
@@ -195,7 +195,7 @@ function process{mode}(source::Source{mode}, flush)
 end
 
 
-@inline function Base.eof{mode}(source::Source{mode})
+@inline function Base.eof(source::Source{mode}) where mode
     if source.state == initialized ||
         (mode == :inflate && source.state == finished && source.reset_on_end)
         return eof(source.input)
@@ -204,7 +204,7 @@ end
 end
 
 
-function Base.close{mode}(source::Source{mode})
+function Base.close(source::Source{mode}) where mode
     if source.state == finalized
         isopen(source.input) && close(source.input)
         return
@@ -224,7 +224,7 @@ function Base.close{mode}(source::Source{mode})
 end
 
 
-function reset!{mode}(source::Source{mode})
+function reset!(source::Source{mode}) where mode
     if mode == :inflate
         @zcheck reset_inflate!(source.zstream)
     else
