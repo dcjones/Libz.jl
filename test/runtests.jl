@@ -1,7 +1,8 @@
 using Libz
 
 using BufferedStreams, Compat
-using Base.Test
+using Compat.Test
+using Compat.Random
 
 srand(0x123456)
 
@@ -107,7 +108,7 @@ end
     @test_throws ArgumentError ZlibDeflateOutputStream(UInt8[], level=10)
     @test_throws ArgumentError ZlibInflateOutputStream(UInt8[], bufsize=0)
 
-    deflated = read(ZlibDeflateInputStream(Vector{UInt8}("foo")))
+    deflated = read(ZlibDeflateInputStream(Vector{UInt8}(codeunits("foo"))))
     buf = IOBuffer()
     out = ZlibInflateOutputStream(buf)
     BufferedStreams.writebytes(out, deflated, length(deflated), true)
@@ -174,7 +175,7 @@ end
 
 @testset "Concatenated gzip files" begin
     filepath = joinpath(dirname(@__FILE__), "foobar.txt.gz")
-    s = readstring(open(filepath) |> ZlibInflateInputStream)
+    s = read(open(filepath) |> ZlibInflateInputStream, String)
     @test s == "foo\nbar\n"
 end
 

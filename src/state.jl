@@ -48,14 +48,28 @@ else
             ts = :($(ts),)
         end
         @assert ts.head == :tuple
-        foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
-            @assert t.head == :call && t.args[1] == :(=>)
-            from, to = t.args[2], t.args[3]
-            quote
-                if $(esc(obj)).state == $(esc(from))
-                    $(esc(obj)).state = $(esc(to))
-                else
-                    $(elblk)
+        if VERSION < v"0.7.0-beta.66" # changed calling convention for foldr
+            foldr(:(error("invalid state: ", $(esc(obj)).state)), ts.args) do t, elblk
+                @assert t.head == :call && t.args[1] == :(=>)
+                from, to = t.args[2], t.args[3]
+                quote
+                    if $(esc(obj)).state == $(esc(from))
+                        $(esc(obj)).state = $(esc(to))
+                    else
+                        $(elblk)
+                    end
+                end
+            end
+        else
+            foldr(ts.args, init = :(error("invalid state: ", $(esc(obj)).state))) do t, elblk
+                @assert t.head == :call && t.args[1] == :(=>)
+                from, to = t.args[2], t.args[3]
+                quote
+                    if $(esc(obj)).state == $(esc(from))
+                        $(esc(obj)).state = $(esc(to))
+                    else
+                        $(elblk)
+                    end
                 end
             end
         end
