@@ -282,3 +282,8 @@ function init_deflate_zstream(raw::Bool, gzip::Bool, level::Integer, mem_level::
     @zcheck init_deflate!(zstream, level, Z_DEFLATED, window_bits, mem_level, strategy)
     return zstream
 end
+
+# For backwards compatibility with 0.2 releases.
+init_inflate_zstream(gzip::Bool) = init_inflate_zstream(false, gzip)
+init_deflate_zstream(gzip::Bool, level::Integer, mem_level::Integer, strategy) =
+    init_deflate_zstream(false, gzip, level, mem_level, strategy)
