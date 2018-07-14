@@ -238,3 +238,28 @@ function reset!(source::Source{mode}) where mode
     )
     return source
 end
+
+# For backwards compatibility with 0.2 releases.
+InflateSource(input::BufferedInputStream, gzip::Bool, reset_on_end::Bool) =
+    InflateSource(input, false, gzip, reset_on_end)
+InflateSource(input::BufferedInputStream, bufsize::Integer, gzip::Bool,
+              reset_on_end::Bool) =
+    InflateSource(input, bufsize, false, gzip, reset_on_end)
+InflateSource(input::IO, bufsize::Integer, gzip::Bool, reset_on_end::Bool) =
+    InflateSource(input, bufsize, false, gzip, reset_on_end)
+InflateSource(input::Vector{UInt8}, bufsize::Integer, gzip::Bool,
+              reset_on_end::Bool) =
+    InflateSource(input, bufsize, false, gzip, reset_on_end)
+
+DeflateSource(input::BufferedInputStream, gzip::Bool, level::Integer,
+              mem_level::Integer, strategy) =
+    DeflateSource(input, false, gzip, level, mem_level, strategy)
+DeflateSource(input::BufferedInputStream, bufsize::Integer, gzip::Bool,
+              level::Integer, mem_level::Integer, strategy) =
+    DeflateSource(input, bufsize, false, gzip, level, mem_level, strategy)
+DeflateSource(input::IO, bufsize::Integer, gzip::Bool, level::Integer,
+              mem_level::Integer, strategy) =
+    DeflateSource(input, bufsize, false, gzip, level, mem_level, strategy)
+DeflateSource(input::Vector{UInt8}, bufsize::Integer, gzip::Bool,
+              level::Integer, mem_level::Integer, strategy) =
+    DeflateSource(input, bufsize, false, gzip, level, mem_level, strategy)

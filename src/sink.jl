@@ -224,3 +224,26 @@ function reset!(sink::Sink{mode}) where mode
     )
     return sink
 end
+
+# For backwards compatibility with 0.2 releases.
+InflateSink(output::BufferedOutputStream, gzip::Bool) =
+    InflateSink(output, false, gzip)
+InflateSink(output::BufferedOutputStream, bufsize::Integer, gzip::Bool) =
+    InflateSink(output, bufsize, false, gzip)
+InflateSink(output::IO, bufsize::Integer, gzip::Bool) =
+    InflateSink(output, bufsize, false, gzip)
+InflateSink(output::Vector{UInt8}, bufsize::Integer, gzip::Bool) =
+    InflateSink(output, bufsize, false, gzip)
+
+DeflateSink(output::BufferedOutputStream, gzip::Bool, level::Integer,
+            mem_level::Integer, strategy) =
+    DeflateSink(output, false, gzip, level, mem_level, strategy)
+DeflateSink(output::BufferedOutputStream, bufsize::Integer,
+            gzip::Bool, level::Integer, mem_level::Integer, strategy) =
+    DeflateSink(output, bufsize, false, gzip, level, mem_level, strategy)
+DeflateSink(output::IO, bufsize::Integer, gzip::Bool, level::Integer,
+            mem_level::Integer, strategy) =
+    DeflateSink(output, bufsize, false, gzip::Bool, level, mem_level, strategy)
+DeflateSink(output::Vector{UInt8}, bufsize::Integer, gzip::Bool,
+            level::Integer, mem_level::Integer, strategy) =
+    DeflateSink(output, bufsize, false, gzip, level, mem_level, strategy)
