@@ -1,11 +1,14 @@
 # Lower-level interface to the zlib library.
 
-if Sys.iswindows()
-    const zlib = "zlib1"
-else
+if VERSION >= v"1.3-rc4"
     const zlib = "libz"
+else
+    if Sys.iswindows()
+        const zlib = "zlib1"
+    else
+        const zlib = "libz"
+    end
 end
-
 
 # Constants
 # ---------
