@@ -1,0 +1,12 @@
+name = "Libz"
+uuid = "2ec943e9-cfe8-584d-b93d-64dcb6d567b7"
+authors = ["D.C. Jones <dcjones@cs.washington.edu>", "Kenta Sato <bicycle1885@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+BufferedStreams = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1"
